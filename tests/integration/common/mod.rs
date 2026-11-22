@@ -11,3 +11,5 @@ pub fn dossier_test(nom: &str) -> PathBuf {
     std::fs::create_dir_all(&d).unwrap();
     d
 }
+
+pub mod mock_provider;

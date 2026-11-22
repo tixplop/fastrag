@@ -11,6 +11,9 @@ Format : `chemin` — rôle (REQ).
 - `tests/integration/main.rs` — binaire unique d'intégration, un module par thème.
 - `tests/integration/common/mod.rs` — aide commune (dossier de test sous `TMPDIR`).
 - `tests/integration/socle.rs` — test de socle.
+- `src/provider.rs` — client `Provider` : `embeddings` (OpenAI, lots de 64) et `rerank` (Cohere/Jina), `ErreurProvider` (réseau, clé, quota, réponse invalide) sans la clé (REQ-006 AC-1, REQ-015 AC-5).
+- `tests/integration/common/mock_provider.rs` — provider simulé partagé (vecteurs déterministes ou imposés, pannes, compteurs).
+- `tests/integration/provider.rs` — tests du client.
 - `src/store/mod.rs` — `Store` SQLite (un fichier par modèle, WAL) : remplacer/supprimer/renommer une note en transaction, vecteurs connus, `Verrou` exclusif du dossier de données (REQ-010).
 - `src/store/query.rs` — candidats : 50 voisins (`vec_distance_cosine`) et 50 meilleurs FTS5 (bm25), filtres dossier et tag (REQ-014).
 - `src/store/schema.sql` — tables notes, note_tags, passages, vecteurs, FTS5 `unicode61 remove_diacritics 2`.
