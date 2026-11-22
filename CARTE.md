@@ -15,3 +15,7 @@ Format : `chemin` — rôle (REQ).
 - `src/store/query.rs` — candidats : 50 voisins (`vec_distance_cosine`) et 50 meilleurs FTS5 (bm25), filtres dossier et tag (REQ-014).
 - `src/store/schema.sql` — tables notes, note_tags, passages, vecteurs, FTS5 `unicode61 remove_diacritics 2`.
 - `tests/integration/store.rs` — tests du stockage (REQ-010 AC-1) ; AC-2 de REQ-014 : test unitaire dans `src/store/query.rs`.
+- `src/chunk/mod.rs` — `decouper_fichier` / `decouper_texte` : fichier → titre, tags, passages, avertissements ; refus non UTF-8 et > 10 Mo ; tests unitaires (REQ-003, REQ-004, REQ-005 AC-1, AC-2).
+- `src/chunk/markdown.rs` — sections par titres (`pulldown-cmark`), tags, liens `[[...]]`, redécoupage 2 000 / 200 caractères.
+- `src/chunk/frontmatter.rs` — front matter YAML (`yaml-rust2`) : titre, tags.
+- `tests/fixtures/` — notes d'exemple (`cuisine.md`, `courses.md`, `pense-bete.txt`).
