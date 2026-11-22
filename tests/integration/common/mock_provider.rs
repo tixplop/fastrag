@@ -27,6 +27,9 @@ struct Etat {
     vecteurs: HashMap<String, Vec<f32>>,
     scores: HashMap<String, f32>,
     autorisations: Vec<String>,
+    modeles: Vec<String>,
+    /// Modèle dont les requêtes `/embeddings` attendent `liberer()`.
+    retenu: Option<String>,
 }
 
 pub struct MockProvider {
@@ -83,6 +86,15 @@ async fn embeddings(
                 .collect()
         })
         .unwrap_or_default();
+    let modele = corps["model"].as_str().unwrap_or("").to_string();
+    e.lock().unwrap().modeles.push(modele.clone());
+    loop {
+        let retenu = e.lock().unwrap().retenu.as_deref() == Some(modele.as_str());
+        if !retenu {
+            break;
+        }
+        tokio::time::sleep(std::time::Duration::from_millis(10)).await;
+    }
     {
         let mut g = e.lock().unwrap();
         g.lots.push(entrees.len());
@@ -209,6 +221,20 @@ impl MockProvider {
 
     pub fn imposer_score(&self, texte: &str, s: f32) {
         self.etat.lock().unwrap().scores.insert(texte.into(), s);
+    }
+
+    /// Les requêtes d'embeddings du modèle `m` attendent jusqu'à `liberer()`.
+    pub fn retenir_modele(&self, m: &str) {
+        self.etat.lock().unwrap().retenu = Some(m.into());
+    }
+
+    pub fn liberer(&self) {
+        self.etat.lock().unwrap().retenu = None;
+    }
+
+    /// Modèle de chaque requête d'embeddings reçue.
+    pub fn modeles_recus(&self) -> Vec<String> {
+        self.etat.lock().unwrap().modeles.clone()
     }
 
     pub fn tailles_lots(&self) -> Vec<usize> {

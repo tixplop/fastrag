@@ -132,6 +132,56 @@ pub fn nom_fichier_index(modele: &str) -> String {
     format!("index-{sur}.db")
 }
 
+const FICHIER_ACTIF: &str = "index-actif";
+
+/// Modèle de l'index actif, noté dans le dossier de données (absent : premier lancement).
+pub fn lire_actif(dossier: &Path) -> Result<Option<String>> {
+    match std::fs::read_to_string(dossier.join(FICHIER_ACTIF)) {
+        Ok(s) if !s.trim().is_empty() => Ok(Some(s.trim().to_string())),
+        Ok(_) => Ok(None),
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(None),
+        Err(e) => Err(e.into()),
+    }
+}
+
+/// Désigne l'index actif en une opération (écriture puis renommage).
+pub fn ecrire_actif(dossier: &Path, modele: &str) -> Result<()> {
+    let tmp = dossier.join(format!("{FICHIER_ACTIF}.tmp"));
+    std::fs::write(&tmp, modele)?;
+    std::fs::rename(&tmp, dossier.join(FICHIER_ACTIF))?;
+    Ok(())
+}
+
+/// Supprime du disque le fichier d'index d'un modèle et ses fichiers WAL.
+pub fn supprimer_index(dossier: &Path, modele: &str) -> Result<()> {
+    let base = nom_fichier_index(modele);
+    for suffixe in ["", "-wal", "-shm"] {
+        match std::fs::remove_file(dossier.join(format!("{base}{suffixe}"))) {
+            Ok(()) => {}
+            Err(e) if e.kind() == std::io::ErrorKind::NotFound => {}
+            Err(e) => return Err(e.into()),
+        }
+    }
+    Ok(())
+}
+
+/// Supprime les fichiers d'index (et WAL) des modèles qui ne sont pas dans `gardes`.
+pub fn supprimer_orphelins(dossier: &Path, gardes: &[&str]) -> Result<()> {
+    let gardes: Vec<String> = gardes.iter().map(|m| nom_fichier_index(m)).collect();
+    for entree in std::fs::read_dir(dossier)? {
+        let nom = entree?.file_name().to_string_lossy().into_owned();
+        let base = nom
+            .strip_suffix("-wal")
+            .or_else(|| nom.strip_suffix("-shm"))
+            .unwrap_or(&nom);
+        if base.starts_with("index-") && base.ends_with(".db") && !gardes.iter().any(|g| g == base)
+        {
+            std::fs::remove_file(dossier.join(&nom))?;
+        }
+    }
+    Ok(())
+}
+
 impl Store {
     /// Ouvre (ou crée) l'index du modèle dans `dossier`.
     pub fn ouvrir(dossier: &Path, modele: &str) -> Result<Self> {
