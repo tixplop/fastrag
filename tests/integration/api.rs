@@ -14,7 +14,7 @@ pub fn ecrire(nom: &str, notes: &[(&str, &str)]) -> std::path::PathBuf {
     racine
 }
 
-fn config(nom: &str, mock: &MockProvider, dossiers: Vec<std::path::PathBuf>) -> Config {
+pub fn config(nom: &str, mock: &MockProvider, dossiers: Vec<std::path::PathBuf>) -> Config {
     let mut c = Config {
         dossiers,
         dossier_donnees: dossier_test(&format!("{nom}_donnees")),

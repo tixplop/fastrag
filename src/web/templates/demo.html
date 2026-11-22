@@ -2,10 +2,10 @@
 <main>
 {{ c::bouton("Chercher") }}
 <div id="champs">
-{{ c::champ("q", "question", "Question", "ma valeur", "", "", false) }}
-{{ c::champ("n", "nombre", "Nombre de résultats", "5", "Entre 1 et 50.", "", true) }}
-{{ c::champ("n2", "nombre", "Nombre de résultats", "abc", "Entre 1 et 50.", "erreur-n2", true) }}
-{{ c::champ("d", "dossier", "Dossier (facultatif)", "", "", "erreur-d", false) }}
+{{ c::champ("q", "question", "Question", "ma valeur", "", "", false, false) }}
+{{ c::champ("n", "nombre", "Nombre de résultats", "5", "Entre 1 et 50.", "", true, false) }}
+{{ c::champ("n2", "nombre", "Nombre de résultats", "abc", "Entre 1 et 50.", "erreur-n2", true, false) }}
+{{ c::champ("d", "dossier", "Dossier (facultatif)", "", "", "erreur-d", false, false) }}
 </div>
 <div id="messages">
 {% call c::message("info", "Aucun passage trouvé.", "") %}<p>Essayez d'autres mots.</p>{% endcall %}

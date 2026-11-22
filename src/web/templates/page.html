@@ -1,0 +1,66 @@
+{% import "composants.html" as c %}<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>FastRAG — page de test</title>
+<link rel="stylesheet" href="/style.css">
+</head>
+<body>
+<main class="page">
+<header class="page__entete"><h1>FastRAG</h1><p>Page de test de la recherche</p></header>
+<div class="page__recherche">
+{% call c::section("titre-recherche", "Recherche", 2, "") %}
+<form class="formulaire" method="get" action="/">
+<div class="formulaire__ligne">
+{{ c::champ("question", "question", "Question", question, "", id_erreur_question(), false, focus_question()) }}
+{{ c::bouton("Chercher") }}
+</div>
+<div class="formulaire__filtres">
+{{ c::champ("nombre", "nombre", "Nombre de résultats", nombre, "De 1 à 50.", id_erreur_nombre(), true, focus_nombre()) }}
+{{ c::champ("dossier", "dossier", "Dossier (facultatif)", dossier, "Chemin absolu, ou relatif à un dossier indexé : travail/", "", false, false) }}
+{{ c::champ("tag", "tag", "Tag (facultatif)", tag, "Exemple : recette", "", false, false) }}
+</div>
+</form>
+{% endcall %}
+</div>
+<div class="page__etat">
+{% call c::section("titre-etat", "État de l'index", 2, "État lu au chargement de la page. Rechargez la page pour le mettre à jour.") %}
+<dl class="chiffres">
+{{ c::chiffre("Notes", etat.notes, "", false) }}
+{{ c::chiffre("Passages", etat.passages, "", false) }}
+<div class="chiffre"><dt>Dernière mise à jour</dt><dd>{% if let Some(d) = etat.date_iso %}<time datetime="{{ d }}">{{ etat.date_affichee }}</time>{% else %}{{ etat.date_affichee }}{% endif %}</dd></div>
+<div class="chiffre"><dt>Indexation en cours</dt><dd>{% if etat.en_cours %}{{ c::etiquette("Oui", true) }}{% else %}{{ c::etiquette("Non", false) }}{% endif %}</dd></div>
+</dl>
+<h3>Avertissements ({{ etat.avertissements.len() }})</h3>
+{% if etat.avertissements.is_empty() %}<p>Aucun avertissement.</p>{% else %}{% call c::message("alerte", "", "") %}<ul>{% for a in etat.avertissements %}<li>{{ a }}</li>{% endfor %}</ul>{% endcall %}{% endif %}
+{% endcall %}
+</div>
+<section class="page__resultats" aria-labelledby="titre-resultats">
+{% if let Some(r) = resultats %}
+<div class="resultats__entete"><h2 id="titre-resultats">Résultats</h2><p class="resume">{{ r.resume }}</p></div>
+{% call c::section("titre-temps", "Temps de réponse", 3, "Mesurées par le service, de la réception de la question à la réponse.") %}
+<dl class="chiffres">
+{{ c::chiffre("Durée totale", r.total, "", false) }}
+{{ c::chiffre("Attente du provider", r.attente, "", false) }}
+</dl>
+{{ c::repartition(r.repartition) }}
+{% endcall %}
+{% if r.passages.is_empty() %}
+{% call c::message("info", "Aucun passage trouvé.", "") %}<p>L'index est vide, ou aucun passage ne passe les filtres. Retirez un filtre ou reformulez la question.</p>{% endcall %}
+{% else %}
+<ol class="passages" role="list">
+{% for p in r.passages %}{{ c::passage(p) }}{% endfor %}
+</ol>
+{% endif %}
+{% else if let Some(e) = erreur %}
+<h2 id="titre-resultats">Résultats</h2>
+{% call c::message("erreur", "La recherche n'a pas abouti", "") %}<p id="erreur-recherche">{{ e.message }}</p>{% if let Some(l) = e.libelle_champ %}<p>Corrigez le champ « {{ l }} », puis relancez la recherche.</p>{% else %}<p>Relancez la recherche. Si l'erreur revient, vérifiez que le provider répond et que sa clé est valide.</p>{% endif %}{% endcall %}
+{% else %}
+<h2 id="titre-resultats">Résultats</h2>
+{% call c::message("info", "", "") %}<p>Saisissez une question, puis choisissez « Chercher ».</p>{% endcall %}
+{% endif %}
+</section>
+</main>
+</body>
+</html>

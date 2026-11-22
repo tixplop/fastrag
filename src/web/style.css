@@ -260,3 +260,4 @@ code, pre { font-family: var(--police-mono); font-size: var(--taille-s); }
 }
 .section__pied { margin: 0; font-size: var(--taille-xs); color: var(--couleur-texte-attenue); }
 .resume { margin: 0; color: var(--couleur-texte-attenue); }
+.resultats__entete { display: flex; flex-wrap: wrap; gap: var(--espace-1) var(--espace-4); align-items: baseline; }

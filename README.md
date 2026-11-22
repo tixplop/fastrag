@@ -49,6 +49,10 @@ curl -s -X POST http://127.0.0.1:7878/reindex
 
 Une entrée invalide renvoie une erreur 400 : `{"error": "...", "field": "..."}`.
 
+## Page de test
+
+Ouvrez `http://127.0.0.1:7878/` (même port que l'API) : une page, sans JavaScript, pour essayer la recherche. Elle propose les réglages de `POST /search` (question, nombre de résultats, dossier, tag) et montre les passages trouvés avec leur score de fusion, leur rang par le sens et par les mots (et le score du reranker s'il est activé), les temps de réponse (durée totale, attente du provider) et l'état de l'index (notes, passages, dernière mise à jour, avertissements). L'état est lu au chargement : rechargez la page pour le mettre à jour.
+
 ## Client MCP
 
 Claude Code :

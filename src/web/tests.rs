@@ -470,3 +470,32 @@ fn composant_section() {
     assert!(s[1].select(&sel("h3#s2")).next().is_some());
     assert!(s[1].select(&sel(".section__pied")).next().is_none());
 }
+
+#[test]
+fn req022_ac2_date_jamais_sans_balise_time_et_date_affichee() {
+    assert_eq!(
+        date_affichee("2026-11-22T14:03:12Z"),
+        "2026-11-22 14:03:12 UTC"
+    );
+    let etat = EtatVue::new(crate::status::EtatIndex {
+        notes: 0,
+        passages: 0,
+        derniere_mise_a_jour: None,
+        en_cours: false,
+        avertissements: vec![],
+    });
+    let html = Page {
+        question: String::new(),
+        nombre: "5".into(),
+        dossier: String::new(),
+        tag: String::new(),
+        erreur: None,
+        resultats: None,
+        etat,
+    }
+    .render()
+    .unwrap();
+    assert!(html.contains("jamais"));
+    assert!(!html.contains("<time"));
+    assert!(html.contains("Aucun avertissement."));
+}
