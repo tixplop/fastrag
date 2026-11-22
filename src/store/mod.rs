@@ -3,7 +3,7 @@
 
 mod query;
 
-pub use query::{Candidat, Filtres};
+pub use query::{Candidat, Filtres, NB_CANDIDATS};
 
 use rusqlite::{params, Connection, OptionalExtension};
 use std::fs::File;

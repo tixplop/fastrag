@@ -72,6 +72,18 @@ fn candidat(r: &rusqlite::Row) -> rusqlite::Result<Candidat> {
 }
 
 impl Store {
+    /// Tags de la note (vide si elle est inconnue).
+    pub fn tags_note(&self, chemin: &str) -> Result<Vec<String>> {
+        let mut st = self.conn.prepare(
+            "SELECT t.tag FROM note_tags t JOIN notes n ON n.id = t.note_id
+             WHERE n.chemin = ? ORDER BY t.rowid",
+        )?;
+        let v = st
+            .query_map([chemin], |r| r.get(0))?
+            .collect::<std::result::Result<_, _>>()?;
+        Ok(v)
+    }
+
     /// Les 50 passages les plus proches du vecteur (distance cosinus croissante).
     pub fn voisins(&self, vecteur: &[f32], filtres: &Filtres) -> Result<Vec<Candidat>> {
         let mut p = vec![Value::Blob(vers_octets(vecteur))];

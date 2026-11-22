@@ -28,3 +28,5 @@ Format : `chemin` — rôle (REQ).
 - `src/index/pending.rs` — `synchroniser_avec_reprise` : nouvel essai au délai configuré tant que des notes attendent le provider (REQ-007).
 - `src/status.rs` — `Statut` partagé : avertissements courants, remplacés à chaque passage (REQ-005 AC-3, REQ-007).
 - `tests/integration/resilience.rs` — avertissements, provider en panne puis de retour, rattrapage, binaire tué (REQ-005 AC-3, REQ-007, REQ-008 AC-3, REQ-010 AC-2).
+- `src/search.rs` — `Recherche::chercher` : validation (question vide, nombre 1..50), vecteur de la question, candidats vecteurs + mots, fusion RRF k = 60, filtres dossier (absolu ou relatif aux dossiers configurés) et tag, reranker facultatif ; `EntreeRecherche`, `Resultat`, `ErreurRecherche` (REQ-012 à REQ-015). `Store::tags_note` dans `src/store/query.rs`.
+- `tests/integration/search.rs` — tests de la recherche (REQ-012 à REQ-015) ; AC-012-3 et AC-012-4 : tests unitaires dans `src/search.rs`.
