@@ -158,7 +158,8 @@ pub async fn demarrer(config: &Config) -> Result<ServiceEnCours, Box<dyn std::er
         .await
         .map_err(|e| format!("impossible d'écouter sur 127.0.0.1:{} : {e}", config.port))?;
     let adresse = listener.local_addr()?;
-    let app = api::routeur(service.clone());
+    let app = api::routeur(service.clone())
+        .nest_service("/mcp", crate::mcp::service_http(service.clone()));
     let serveur = tokio::spawn(async move {
         if let Err(e) = axum::serve(listener, app).await {
             tracing::error!("serveur HTTP arrêté : {e}");

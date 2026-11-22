@@ -1,5 +1,6 @@
 use crate::common::dossier_test;
 use crate::common::mock_provider::MockProvider;
+use crate::common::GardeEnfant;
 use std::io::{BufRead, BufReader};
 use std::process::{Command, Stdio};
 use std::time::{Duration, Instant};
@@ -66,13 +67,15 @@ async fn serie_req020_ac1_ac2_dix_mille_notes_memoire_et_recherche() {
         ),
     )
     .unwrap();
-    let mut enfant = Command::new(env!("CARGO_BIN_EXE_fastrag"))
-        .arg("--config")
-        .arg(&conf)
-        .stdout(Stdio::piped())
-        .stderr(Stdio::null())
-        .spawn()
-        .unwrap();
+    let mut enfant = GardeEnfant::new(
+        Command::new(env!("CARGO_BIN_EXE_fastrag"))
+            .arg("--config")
+            .arg(&conf)
+            .stdout(Stdio::piped())
+            .stderr(Stdio::null())
+            .spawn()
+            .unwrap(),
+    );
     let mut ligne = String::new();
     BufReader::new(enfant.stdout.as_mut().unwrap())
         .read_line(&mut ligne)

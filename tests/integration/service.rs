@@ -1,13 +1,14 @@
 use crate::common::dossier_test;
 use crate::common::mock_provider::{MockProvider, Panne};
+use crate::common::GardeEnfant;
 use fastrag::index::Indexeur;
 use fastrag::provider::Provider;
 use fastrag::store::Store;
 use std::io::{BufRead, BufReader};
-use std::process::{Child, Command, Stdio};
+use std::process::{Command, Stdio};
 use std::time::Duration;
 
-fn lancer(conf: &std::path::Path, cle: Option<&str>) -> (Child, Option<String>) {
+fn lancer(conf: &std::path::Path, cle: Option<&str>) -> (GardeEnfant, Option<String>) {
     let mut cmd = Command::new(env!("CARGO_BIN_EXE_fastrag"));
     cmd.arg("--config")
         .arg(conf)
@@ -25,7 +26,7 @@ fn lancer(conf: &std::path::Path, cle: Option<&str>) -> (Child, Option<String>) 
         .trim()
         .strip_prefix("Service prêt sur http://")
         .map(String::from);
-    (enfant, adresse)
+    (GardeEnfant::new(enfant), adresse)
 }
 
 fn config(nom: &str, mock: &MockProvider) -> (std::path::PathBuf, std::path::PathBuf) {
@@ -137,7 +138,7 @@ async fn req001_ac3_la_cle_n_apparait_ni_dans_l_etat_ni_les_journaux_ni_les_erre
         mock.autorisations()
     );
     enfant.kill().unwrap();
-    let sortie = enfant.wait_with_output().unwrap();
+    let sortie = enfant.sortie().unwrap();
     let journaux = String::from_utf8_lossy(&sortie.stderr);
     assert!(
         journaux.contains("clé invalide"),

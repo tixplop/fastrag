@@ -14,13 +14,18 @@ const K_RRF: f64 = 60.0;
 pub const NOMBRE_DEFAUT: usize = 5;
 pub const NOMBRE_MAX: usize = 50;
 
-#[derive(Debug, Clone, Deserialize, Serialize)]
+#[derive(Debug, Clone, Deserialize, Serialize, rmcp::schemars::JsonSchema)]
+#[schemars(crate = "rmcp::schemars")]
 pub struct EntreeRecherche {
+    /// Question en langage naturel.
     pub question: String,
+    /// Nombre de résultats voulus (1 à 50, 5 par défaut).
     #[serde(default)]
     pub nombre: Option<i64>,
+    /// Limite la recherche à ce dossier (chemin absolu, ou relatif aux dossiers configurés).
     #[serde(default)]
     pub dossier: Option<String>,
+    /// Limite la recherche aux notes portant ce tag.
     #[serde(default)]
     pub tag: Option<String>,
 }

@@ -15,6 +15,7 @@ axum = "0.8.9"
 blake3 = "1.8.7"
 fs2 = "0.4.3"
 pulldown-cmark = "0.13.6"
+rmcp = { version = "3.9.0", features = ["server", "macros", "transport-streamable-http-server"] }
 reqwest = { version = "0.13.5", default-features = false, features = ["rustls", "json"] }
 rusqlite = { version = "0.43.0", features = ["bundled"] }
 serde = { version = "1", features = ["derive"] }
@@ -31,6 +32,7 @@ name = "integration"
 path = "tests/integration/main.rs"
 
 [dev-dependencies]
+rmcp = { version = "3.9.0", features = ["client", "transport-streamable-http-client-reqwest"] }
 
 # Optimisé même en test : sans cela, 10 000 notes sont trop lentes à indexer (REQ-020) ; dépendances à fond, crate à 1.
 [profile.dev]

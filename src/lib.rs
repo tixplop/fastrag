@@ -2,6 +2,7 @@ pub mod api;
 pub mod chunk;
 pub mod config;
 pub mod index;
+pub mod mcp;
 pub mod provider;
 pub mod search;
 pub mod service;

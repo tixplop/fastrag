@@ -182,12 +182,14 @@ async fn req010_ac2_binaire_tue_pendant_l_indexation_puis_rattrape() {
     )
     .unwrap();
     let lancer = || {
-        std::process::Command::new(env!("CARGO_BIN_EXE_fastrag"))
-            .arg("--config")
-            .arg(&conf)
-            .stdout(std::process::Stdio::null())
-            .spawn()
-            .unwrap()
+        crate::common::GardeEnfant::new(
+            std::process::Command::new(env!("CARGO_BIN_EXE_fastrag"))
+                .arg("--config")
+                .arg(&conf)
+                .stdout(std::process::Stdio::null())
+                .spawn()
+                .unwrap(),
+        )
     };
     // Première indexation complète (contenu « avant ») : le service ne s'arrête plus seul.
     // Connexion de suivi ouverte une fois : elle ne fait que lire, sans gêner l'écriture du binaire.

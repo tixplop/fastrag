@@ -1,6 +1,7 @@
 mod api;
 mod common;
 mod indexation;
+mod mcp;
 mod perf;
 mod provider;
 mod resilience;
