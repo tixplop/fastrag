@@ -9,3 +9,4 @@ mod search;
 mod service;
 mod socle;
 mod store;
+mod watch;

@@ -52,6 +52,12 @@ pub struct Config {
     pub dossier_donnees: PathBuf,
     /// Délai avant un nouvel essai quand le provider d'embedding échoue.
     pub reessai_secondes: u64,
+    /// Période de la relecture des dossiers sous `/mnt/` (REQ-008).
+    pub releve_secondes: u64,
+    /// Délai de regroupement des événements de surveillance, en millisecondes (REQ-008).
+    pub regroupement_ms: u64,
+    /// Relire tous les dossiers périodiquement au lieu d'utiliser inotify (REQ-008).
+    pub forcer_releve: bool,
 }
 
 fn home() -> PathBuf {
@@ -69,6 +75,9 @@ impl Default for Config {
             port: 7878,
             dossier_donnees: home().join(".local/share/fastrag"),
             reessai_secondes: 30,
+            releve_secondes: 5,
+            regroupement_ms: 300,
+            forcer_releve: false,
         }
     }
 }

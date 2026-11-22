@@ -71,7 +71,7 @@ impl Service {
     }
 
     /// Une seule tâche d'indexation à la fois. Rend `false` si l'une tourne déjà.
-    fn demarrer_indexation(self: &Arc<Self>, complete: bool) -> bool {
+    pub(crate) fn demarrer_indexation(self: &Arc<Self>, complete: bool) -> bool {
         if self.en_cours.swap(true, Ordering::SeqCst) {
             return false;
         }
@@ -113,6 +113,7 @@ pub struct ServiceEnCours {
     pub adresse: SocketAddr,
     pub service: Arc<Service>,
     serveur: JoinHandle<()>,
+    surveillance: JoinHandle<()>,
     _verrou: Verrou,
 }
 
@@ -126,6 +127,7 @@ impl ServiceEnCours {
 impl Drop for ServiceEnCours {
     fn drop(&mut self) {
         self.serveur.abort();
+        self.surveillance.abort();
         if let Some(h) = self.service.tache.lock().unwrap().take() {
             h.abort();
         }
@@ -165,11 +167,13 @@ pub async fn demarrer(config: &Config) -> Result<ServiceEnCours, Box<dyn std::er
             tracing::error!("serveur HTTP arrêté : {e}");
         }
     });
+    let surveillance = crate::watch::lancer(service.clone(), config);
     service.demarrer_indexation(false);
     Ok(ServiceEnCours {
         adresse,
         service,
         serveur,
+        surveillance,
         _verrou: verrou,
     })
 }
