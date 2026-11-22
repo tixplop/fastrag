@@ -22,3 +22,6 @@ Format : `chemin` — rôle (REQ).
 - `src/chunk/markdown.rs` — sections par titres (`pulldown-cmark`), tags, liens `[[...]]`, redécoupage 2 000 / 200 caractères.
 - `src/chunk/frontmatter.rs` — front matter YAML (`yaml-rust2`) : titre, tags.
 - `tests/fixtures/` — notes d'exemple (`cuisine.md`, `courses.md`, `pense-bete.txt`).
+- `src/index/mod.rs` — `Indexeur::synchroniser` : rapprochement dossiers/index (nouvelles, modifiées, supprimées, renommées), empreinte `blake3`, envoi au provider des seuls textes sans vecteur connu, indicateur « en cours » (REQ-002, REQ-006 AC-2 à AC-4).
+- `src/index/scan.rs` — parcours des dossiers : extensions `.md/.markdown/.txt`, dossiers cachés ignorés, dossier introuvable → avertissement (REQ-002).
+- `tests/integration/indexation.rs` — tests de l'indexeur (REQ-002, REQ-006).
