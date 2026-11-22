@@ -1,0 +1,36 @@
+{% import "composants.html" as c %}
+<main>
+{{ c::bouton("Chercher") }}
+<div id="champs">
+{{ c::champ("q", "question", "Question", "ma valeur", "", "", false) }}
+{{ c::champ("n", "nombre", "Nombre de résultats", "5", "Entre 1 et 50.", "", true) }}
+{{ c::champ("n2", "nombre", "Nombre de résultats", "abc", "Entre 1 et 50.", "erreur-n2", true) }}
+{{ c::champ("d", "dossier", "Dossier (facultatif)", "", "", "erreur-d", false) }}
+</div>
+<div id="messages">
+{% call c::message("info", "Aucun passage trouvé.", "") %}<p>Essayez d'autres mots.</p>{% endcall %}
+{% call c::message("erreur", "La recherche n'a pas abouti", "erreur-n2") %}<p>{{ texte_hostile }}</p>{% endcall %}
+{% call c::message("alerte", "Avertissements (2)", "") %}<ul><li>un</li><li>deux</li></ul>{% endcall %}
+</div>
+<div id="etiquettes">
+{{ c::etiquette("cuisine", false) }}
+{{ c::etiquette("Oui", true) }}
+</div>
+<dl class="chiffres" id="chiffres">
+{{ c::chiffre("Notes", "12", "", false) }}
+{{ c::chiffre("Durée", "168 ms", "chiffre--compact", false) }}
+{{ c::chiffre("Fusion", "0.0325", "chiffre--principal", false) }}
+{{ c::chiffre("Rang sens", "absent", "chiffre--compact", true) }}
+</dl>
+<div id="repartitions">
+{{ c::repartition(rep_complete) }}
+{{ c::repartition(rep_sans_reranker) }}
+{{ c::repartition(rep_nulle) }}
+</div>
+<ol class="passages" role="list" id="passages">
+{{ c::passage(passage_reranker) }}
+{{ c::passage(passage_simple) }}
+</ol>
+{% call c::section("s1", "État de l'index", 2, "Pied de section.") %}<p>contenu</p>{% endcall %}
+{% call c::section("s2", "Temps de réponse", 3, "") %}<p>contenu</p>{% endcall %}
+</main>

@@ -1,0 +1,19 @@
+{# Composants C-001 à C-008 du design system. #}
+{% macro bouton(libelle) %}<button class="bouton" type="submit">{{ libelle }}</button>{% endmacro %}
+
+{% macro champ(id, nom, libelle, valeur, aide, erreur_id, numerique) %}<div class="champ"><label for="{{ id }}">{{ libelle }}</label><input id="{{ id }}" name="{{ nom }}" type="text" value="{{ valeur }}"{% if numerique %} inputmode="numeric"{% endif %}{% if erreur_id != "" %} aria-invalid="true"{% endif %}{% if aide != "" || erreur_id != "" %} aria-describedby="{% if aide != "" %}{{ id }}-aide{% endif %}{% if aide != "" && erreur_id != "" %} {% endif %}{% if erreur_id != "" %}{{ erreur_id }}{% endif %}"{% endif %}>{% if aide != "" %}<p class="champ__aide" id="{{ id }}-aide">{{ aide }}</p>{% endif %}</div>{% endmacro %}
+
+{# variante : "info", "erreur" ou "alerte" ; le corps vient de l'appelant. #}
+{% macro message(variante, titre, id) %}<div class="message{% if variante == "erreur" %} message--erreur{% endif %}{% if variante == "alerte" %} message--alerte{% endif %}"{% if id != "" %} id="{{ id }}"{% endif %}{% if variante == "info" %} role="status"{% endif %}{% if variante == "erreur" %} role="alert"{% endif %}>{% if titre != "" %}<p class="message__titre">{{ titre }}</p>{% endif %}{{ caller() }}</div>{% endmacro %}
+
+{% macro etiquette(texte, info) %}<span class="etiquette{% if info %} etiquette--info{% endif %}">{{ texte }}</span>{% endmacro %}
+
+{# classe : "", "chiffre--compact" ou "chiffre--principal" ; à placer dans un <dl class="chiffres">. #}
+{% macro chiffre(libelle, valeur, classe, absent) %}<div class="chiffre{% if classe != "" %} {{ classe }}{% endif %}"><dt>{{ libelle }}</dt><dd{% if absent %} class="est-absent"{% endif %}>{{ valeur }}</dd></div>{% endmacro %}
+
+{% macro repartition(r) %}<div class="repartition">{% if !r.segments.is_empty() %}<div class="repartition__barre" aria-hidden="true">{% for s in r.segments %}<span class="{{ s.classe }}" style="width:{{ s.largeur }}"></span>{% endfor %}</div>{% endif %}<dl class="repartition__legende">{% for l in r.legende %}<div class="chiffre chiffre--compact"><dt><span class="pastille {{ l.classe }}"></span> {{ l.libelle }}</dt><dd{% if l.absent %} class="est-absent"{% endif %}>{{ l.valeur }}</dd></div>{% endfor %}</dl></div>{% endmacro %}
+
+{% macro passage(p) %}<li class="passage"><div class="passage__entete"><div class="passage__titre"><span class="passage__rang">#{{ p.rang }}</span><h3>{{ p.titre_affiche() }}</h3></div><dl class="chiffres">{% if p.reranker.is_some() %}<div class="chiffre chiffre--compact chiffre--principal"><dt>Reranker</dt><dd>{{ p.reranker_texte() }}</dd></div><div class="chiffre chiffre--compact"><dt>Fusion</dt><dd>{{ p.fusion_texte() }}</dd></div>{% else %}<div class="chiffre chiffre--compact chiffre--principal"><dt>Fusion</dt><dd>{{ p.fusion_texte() }}</dd></div>{% endif %}<div class="chiffre chiffre--compact"><dt>Rang sens</dt><dd{% if p.rang_sens.is_none() %} class="est-absent"{% endif %}>{{ p.rang_sens_texte() }}</dd></div><div class="chiffre chiffre--compact"><dt>Rang mots</dt><dd{% if p.rang_mots.is_none() %} class="est-absent"{% endif %}>{{ p.rang_mots_texte() }}</dd></div></dl></div><div class="passage__source"><code>{{ p.fichier }}</code><span>lignes {{ p.debut }} à {{ p.fin }}</span>{% if !p.tags.is_empty() %}<span class="etiquettes">{% for t in p.tags %}<span class="etiquette">{{ t }}</span>{% endfor %}</span>{% endif %}</div><pre class="passage__texte">{{ p.texte }}</pre></li>{% endmacro %}
+
+{# niveau : 2 ou 3 ; le contenu vient de l'appelant ; pied vide = pas de pied. #}
+{% macro section(id, titre, niveau, pied) %}<section class="section" aria-labelledby="{{ id }}">{% if niveau == 3 %}<h3 id="{{ id }}">{{ titre }}</h3>{% else %}<h2 id="{{ id }}">{{ titre }}</h2>{% endif %}{{ caller() }}{% if pied != "" %}<p class="section__pied">{{ pied }}</p>{% endif %}</section>{% endmacro %}

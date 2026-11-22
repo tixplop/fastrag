@@ -9,3 +9,4 @@ pub mod service;
 pub mod status;
 pub mod store;
 pub mod watch;
+pub mod web;
