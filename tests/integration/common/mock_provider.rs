@@ -18,6 +18,7 @@ pub enum Panne {
 
 #[derive(Default)]
 struct Etat {
+    dim: usize,
     panne: Option<Panne>,
     /// Taille de chaque lot reçu par `/embeddings`.
     lots: Vec<usize>,
@@ -37,11 +38,17 @@ pub struct MockProvider {
 
 /// Vecteur déterministe tiré de l'empreinte du texte.
 pub fn vecteur_defaut(texte: &str) -> Vec<f32> {
-    let h = blake3::hash(texte.as_bytes());
-    h.as_bytes()[..DIM]
-        .iter()
-        .map(|b| *b as f32 / 255.0 + 0.01)
-        .collect()
+    vecteur_dim(texte, DIM)
+}
+
+/// Vecteur déterministe de `dim` dimensions (flux étendu de l'empreinte).
+pub fn vecteur_dim(texte: &str, dim: usize) -> Vec<f32> {
+    let mut octets = vec![0u8; dim];
+    blake3::Hasher::new()
+        .update(texte.as_bytes())
+        .finalize_xof()
+        .fill(&mut octets);
+    octets.iter().map(|b| *b as f32 / 255.0 + 0.01).collect()
 }
 
 async fn gerer_panne(
@@ -93,7 +100,7 @@ async fn embeddings(
                 .vecteurs
                 .get(t)
                 .cloned()
-                .unwrap_or_else(|| vecteur_defaut(t));
+                .unwrap_or_else(|| vecteur_dim(t, g.dim));
             json!({"index": i, "embedding": v})
         })
         .collect();
@@ -144,7 +151,15 @@ fn construire(etat: Arc<Mutex<Etat>>) -> Router {
 
 impl MockProvider {
     pub async fn demarrer() -> Self {
-        let etat = Arc::new(Mutex::new(Etat::default()));
+        Self::demarrer_dim(DIM).await
+    }
+
+    /// Provider dont les vecteurs par défaut ont `dim` dimensions.
+    pub async fn demarrer_dim(dim: usize) -> Self {
+        let etat = Arc::new(Mutex::new(Etat {
+            dim,
+            ..Etat::default()
+        }));
         let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
         let adresse = listener.local_addr().unwrap();
         let app = construire(etat.clone());

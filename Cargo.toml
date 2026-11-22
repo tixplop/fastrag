@@ -31,3 +31,10 @@ name = "integration"
 path = "tests/integration/main.rs"
 
 [dev-dependencies]
+
+# Optimisé même en test : sans cela, 10 000 notes sont trop lentes à indexer (REQ-020) ; dépendances à fond, crate à 1.
+[profile.dev]
+opt-level = 1
+
+[profile.dev.package."*"]
+opt-level = 3

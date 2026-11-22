@@ -34,3 +34,4 @@ Format : `chemin` — rôle (REQ).
 - `src/api.rs` — routeur axum `POST /search`, `POST /reindex`, `GET /status`, erreurs 400 JSON `{error, field}` ; `lire_entree` (REQ-016).
 - `src/status.rs` — aussi `EtatIndex` (réponse d'état) et `rfc3339` (REQ-017).
 - `tests/integration/api.rs` — API en processus (REQ-009, REQ-016, REQ-017, REQ-019 AC-1/2) ; `tests/integration/service.rs` — binaire : second lancement, clé témoin (REQ-019 AC-3, REQ-001 AC-3), réindexation complète.
+- `tests/integration/perf.rs` — 10 000 notes, binaire réel : VmRSS < 300 Mo et recherche < 200 ms (REQ-020 AC-1, AC-2) ; le provider simulé accepte une dimension (`demarrer_dim`). Index par groupes de 200 notes (`src/index/mod.rs`), `vec_distance_cosine` (sqlite-vec) et pages de 16 Ko (`src/store/mod.rs`), parcours des vecteurs d'abord (`src/store/query.rs`).

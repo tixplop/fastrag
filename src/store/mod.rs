@@ -143,6 +143,8 @@ impl Store {
         enregistrer_sqlite_vec();
         let conn = Connection::open(fichier)?;
         conn.busy_timeout(std::time::Duration::from_secs(10))?;
+        // Pages assez grandes pour garder un vecteur dans une seule page (sans effet sur un index existant).
+        conn.pragma_update(None, "page_size", 16384)?;
         conn.pragma_update(None, "journal_mode", "WAL")?;
         conn.pragma_update(None, "synchronous", "NORMAL")?;
         conn.pragma_update(None, "foreign_keys", "ON")?;

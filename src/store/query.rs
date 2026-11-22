@@ -88,14 +88,27 @@ impl Store {
     pub fn voisins(&self, vecteur: &[f32], filtres: &Filtres) -> Result<Vec<Candidat>> {
         let mut p = vec![Value::Blob(vers_octets(vecteur))];
         let clauses = filtres.clauses(&mut p);
+        // Les mêmes filtres servent dans la sous-requête puis en sortie.
+        let filtre_params = p[1..].to_vec();
+        p.extend(filtre_params);
+        // On parcourt d'abord les vecteurs (lecture séquentielle), puis on retrouve les passages.
+        let existe = if clauses.is_empty() {
+            String::new()
+        } else {
+            format!(
+                "WHERE EXISTS (SELECT 1 FROM passages p JOIN notes n ON n.id = p.note_id
+                               WHERE p.empreinte = v.empreinte {clauses})"
+            )
+        };
         let sql = format!(
-            "SELECT p.id, n.chemin, n.titre, p.titres, p.texte, p.ligne_debut, p.ligne_fin,
-                    vec_distance_cosine(v.vecteur, ?) AS d
-             FROM passages p
+            "SELECT p.id, n.chemin, n.titre, p.titres, p.texte, p.ligne_debut, p.ligne_fin, c.d
+             FROM (SELECT v.empreinte AS empreinte, vec_distance_cosine(v.vecteur, ?) AS d
+                   FROM vecteurs v {existe}
+                   ORDER BY d LIMIT {NB_CANDIDATS}) c
+             JOIN passages p ON p.empreinte = c.empreinte
              JOIN notes n ON n.id = p.note_id
-             JOIN vecteurs v ON v.empreinte = p.empreinte
              WHERE 1=1 {clauses}
-             ORDER BY d LIMIT {NB_CANDIDATS}"
+             ORDER BY c.d LIMIT {NB_CANDIDATS}"
         );
         let mut st = self.conn.prepare(&sql)?;
         let v = st

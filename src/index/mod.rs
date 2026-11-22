@@ -12,6 +12,9 @@ use std::path::PathBuf;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 
+/// Nombre de notes envoyées au provider puis écrites en une fois.
+const TAILLE_GROUPE: usize = 200;
+
 #[derive(Debug)]
 pub enum ErreurIndex {
     /// Une indexation est déjà en cours.
@@ -207,65 +210,71 @@ impl Indexeur {
                 Err(refus) => self.avertissements.push(refus.to_string()),
             }
         }
-        let empreintes: Vec<String> = notes
-            .iter()
-            .flat_map(|(_, ps, _)| ps.iter().map(|p| p.empreinte.clone()))
-            .collect();
-        let connus: HashSet<String> = self
-            .store
-            .vecteurs_connus(&empreintes)?
-            .into_iter()
-            .collect();
-        let mut inconnus: Vec<&Passage> = Vec::new();
-        let mut vus = HashSet::new();
-        for (_, ps, _) in &notes {
-            for p in ps {
-                if !connus.contains(&p.empreinte) && vus.insert(p.empreinte.clone()) {
-                    inconnus.push(p);
-                }
-            }
-        }
-        let textes: Vec<String> = inconnus.iter().map(|p| p.texte.clone()).collect();
-        let mut vecteurs: HashMap<String, Vec<f32>> = HashMap::new();
-        if !textes.is_empty() {
-            let v = match self.provider.embeddings(&textes).await {
-                Ok(v) => v,
-                Err(e) => {
-                    // Les notes restent en attente ; leur ancienne version, s'il y en a une,
-                    // reste dans l'index.
-                    for (note, _, _) in &notes {
-                        self.avertissements.push(format!(
-                            "{} : en attente, nouvel essai plus tard ({e})",
-                            note.chemin
-                        ));
-                        self.en_attente.push(note.chemin.clone());
-                    }
-                    return Ok(rapport);
-                }
-            };
-            if v.len() != textes.len() {
-                return Err(ErreurProvider::ReponseInvalide(
-                    "nombre de vecteurs différent du nombre de textes".into(),
-                )
-                .into());
-            }
-            for (p, v) in inconnus.iter().zip(v) {
-                vecteurs.insert(p.empreinte.clone(), v);
-            }
-        }
-        for (note, passages, nouvelle) in notes {
-            let avec: Vec<(Passage, Option<Vec<f32>>)> = passages
-                .into_iter()
-                .map(|p| {
-                    let v = vecteurs.get(&p.empreinte).cloned();
-                    (p, v)
-                })
+        // Par groupes de notes : la mémoire reste bornée et l'index se remplit au fil de l'eau.
+        let mut restantes = notes;
+        while !restantes.is_empty() {
+            let reste = restantes.split_off(restantes.len().min(TAILLE_GROUPE));
+            let lot = std::mem::replace(&mut restantes, reste);
+            let empreintes: Vec<String> = lot
+                .iter()
+                .flat_map(|(_, ps, _)| ps.iter().map(|p| p.empreinte.clone()))
                 .collect();
-            self.store.remplacer_note(&note, &avec)?;
-            if nouvelle {
-                rapport.nouvelles += 1;
-            } else {
-                rapport.modifiees += 1;
+            let connus: HashSet<String> = self
+                .store
+                .vecteurs_connus(&empreintes)?
+                .into_iter()
+                .collect();
+            let mut inconnus: Vec<&Passage> = Vec::new();
+            let mut vus = HashSet::new();
+            for (_, ps, _) in &lot {
+                for p in ps {
+                    if !connus.contains(&p.empreinte) && vus.insert(p.empreinte.clone()) {
+                        inconnus.push(p);
+                    }
+                }
+            }
+            let textes: Vec<String> = inconnus.iter().map(|p| p.texte.clone()).collect();
+            let mut vecteurs: HashMap<String, Vec<f32>> = HashMap::new();
+            if !textes.is_empty() {
+                let v = match self.provider.embeddings(&textes).await {
+                    Ok(v) => v,
+                    Err(e) => {
+                        // Les notes restent en attente ; leur ancienne version, s'il y en a une,
+                        // reste dans l'index.
+                        for (note, _, _) in lot.iter().chain(restantes.iter()) {
+                            self.avertissements.push(format!(
+                                "{} : en attente, nouvel essai plus tard ({e})",
+                                note.chemin
+                            ));
+                            self.en_attente.push(note.chemin.clone());
+                        }
+                        return Ok(rapport);
+                    }
+                };
+                if v.len() != textes.len() {
+                    return Err(ErreurProvider::ReponseInvalide(
+                        "nombre de vecteurs différent du nombre de textes".into(),
+                    )
+                    .into());
+                }
+                for (p, v) in inconnus.iter().zip(v) {
+                    vecteurs.insert(p.empreinte.clone(), v);
+                }
+            }
+            for (note, passages, nouvelle) in lot {
+                let avec: Vec<(Passage, Option<Vec<f32>>)> = passages
+                    .into_iter()
+                    .map(|p| {
+                        let v = vecteurs.get(&p.empreinte).cloned();
+                        (p, v)
+                    })
+                    .collect();
+                self.store.remplacer_note(&note, &avec)?;
+                if nouvelle {
+                    rapport.nouvelles += 1;
+                } else {
+                    rapport.modifiees += 1;
+                }
             }
         }
         Ok(rapport)
