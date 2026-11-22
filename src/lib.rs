@@ -1,7 +1,9 @@
+pub mod api;
 pub mod chunk;
 pub mod config;
 pub mod index;
 pub mod provider;
 pub mod search;
+pub mod service;
 pub mod status;
 pub mod store;

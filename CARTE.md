@@ -5,7 +5,7 @@ Format : `chemin` — rôle (REQ).
 
 - `Cargo.toml` — crate lib + bin `fastrag`, binaire de test `integration`.
 - `src/lib.rs` — racine de la bibliothèque.
-- `src/main.rs` — binaire mince : lit `--config <fichier>`, charge la configuration (REQ-001), prend le verrou, rattrape l'index au démarrage avec reprise (REQ-008 AC-3, REQ-010 AC-2).
+- `src/main.rs` — binaire mince : lit `--config <fichier>`, charge la configuration (REQ-001), journaux `tracing` sur stderr, lance `service::demarrer` et ne s'arrête plus seul (REQ-019).
 - `src/config.rs` — configuration TOML, valeurs par défaut, erreur nommant fichier et champ (REQ-001 AC-1, AC-2) ; `reessai_secondes` (30 par défaut).
 - `.config/nextest.toml` — timeouts (10 s unitaire, 60 s intégration), groupe `serie` (tests nommés `serie_*`).
 - `tests/integration/main.rs` — binaire unique d'intégration, un module par thème.
@@ -30,3 +30,7 @@ Format : `chemin` — rôle (REQ).
 - `tests/integration/resilience.rs` — avertissements, provider en panne puis de retour, rattrapage, binaire tué (REQ-005 AC-3, REQ-007, REQ-008 AC-3, REQ-010 AC-2).
 - `src/search.rs` — `Recherche::chercher` : validation (question vide, nombre 1..50), vecteur de la question, candidats vecteurs + mots, fusion RRF k = 60, filtres dossier (absolu ou relatif aux dossiers configurés) et tag, reranker facultatif ; `EntreeRecherche`, `Resultat`, `ErreurRecherche` (REQ-012 à REQ-015). `Store::tags_note` dans `src/store/query.rs`.
 - `tests/integration/search.rs` — tests de la recherche (REQ-012 à REQ-015) ; AC-012-3 et AC-012-4 : tests unitaires dans `src/search.rs`.
+- `src/service.rs` — `demarrer` : verrou, index, tâche d'indexation unique (rattrapage au démarrage, réindexation complète), serveur sur `127.0.0.1` ; `Service::chercher/etat/reindexer`, `ServiceEnCours` (REQ-009, REQ-017, REQ-019).
+- `src/api.rs` — routeur axum `POST /search`, `POST /reindex`, `GET /status`, erreurs 400 JSON `{error, field}` ; `lire_entree` (REQ-016).
+- `src/status.rs` — aussi `EtatIndex` (réponse d'état) et `rfc3339` (REQ-017).
+- `tests/integration/api.rs` — API en processus (REQ-009, REQ-016, REQ-017, REQ-019 AC-1/2) ; `tests/integration/service.rs` — binaire : second lancement, clé témoin (REQ-019 AC-3, REQ-001 AC-3), réindexation complète.

@@ -174,7 +174,7 @@ async fn req010_ac2_binaire_tue_pendant_l_indexation_puis_rattrape() {
     std::fs::write(
         &conf,
         format!(
-            "dossiers = [{}]\ndossier_donnees = {}\n[embedding]\nurl = {:?}\nmodele = \"m\"\n",
+            "dossiers = [{}]\ndossier_donnees = {}\nport = 0\n[embedding]\nurl = {:?}\nmodele = \"m\"\n",
             q(&notes),
             q(&donnees),
             mock.url
@@ -189,8 +189,21 @@ async fn req010_ac2_binaire_tue_pendant_l_indexation_puis_rattrape() {
             .spawn()
             .unwrap()
     };
-    // Première indexation complète (contenu « avant »).
-    assert!(lancer().wait().unwrap().success());
+    // Première indexation complète (contenu « avant ») : le service ne s'arrête plus seul.
+    // Connexion de suivi ouverte une fois : elle ne fait que lire, sans gêner l'écriture du binaire.
+    let suivi = Store::ouvrir(&donnees, "m").unwrap();
+    let mut premier = lancer();
+    let limite = std::time::Instant::now() + Duration::from_secs(30);
+    loop {
+        let fini = suivi.compter().map(|(n, _)| n == N).unwrap_or(false);
+        if fini {
+            break;
+        }
+        assert!(std::time::Instant::now() < limite, "indexation trop longue");
+        tokio::time::sleep(Duration::from_millis(20)).await;
+    }
+    premier.kill().unwrap();
+    premier.wait().unwrap();
     let avant = mock.textes_recus().len();
     assert!(avant >= N);
     for i in 0..N {
@@ -225,7 +238,23 @@ async fn req010_ac2_binaire_tue_pendant_l_indexation_puis_rattrape() {
     }
     drop(store);
     // Relance : rattrapage complet, tout à la nouvelle version.
-    assert!(lancer().wait().unwrap().success());
+    let mut relance = lancer();
+    let limite = std::time::Instant::now() + Duration::from_secs(30);
+    loop {
+        let store = Store::ouvrir(&donnees, "m").unwrap();
+        let fini = store
+            .chemins_notes()
+            .unwrap()
+            .iter()
+            .all(|c| store.passages_note(c).unwrap()[0].texte.contains("apres"));
+        if fini {
+            break;
+        }
+        assert!(std::time::Instant::now() < limite, "rattrapage trop long");
+        tokio::time::sleep(Duration::from_millis(20)).await;
+    }
+    relance.kill().unwrap();
+    relance.wait().unwrap();
     let store = Store::ouvrir(&donnees, "m").unwrap();
     let presentes = store.chemins_notes().unwrap();
     assert_eq!(presentes.len(), N);

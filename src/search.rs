@@ -188,8 +188,12 @@ impl Recherche {
                 voisins.extend(store.voisins(&vecteur, &filtres)?);
                 mots.extend(store.mots(question, &filtres)?);
             }
-            voisins.sort_by(|a, b| a.score.total_cmp(&b.score));
-            mots.sort_by(|a, b| a.score.total_cmp(&b.score));
+            // Des dossiers imbriqués peuvent ramener deux fois le même passage.
+            for liste in [&mut voisins, &mut mots] {
+                liste.sort_by(|a, b| a.score.total_cmp(&b.score));
+                let mut vus = std::collections::HashSet::new();
+                liste.retain(|c| vus.insert(c.passage_id));
+            }
             voisins.truncate(crate::store::NB_CANDIDATS);
             mots.truncate(crate::store::NB_CANDIDATS);
         }

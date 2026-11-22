@@ -1,10 +1,6 @@
 use fastrag::config::Config;
-use fastrag::index::{pending::synchroniser_avec_reprise, Indexeur};
-use fastrag::provider::Provider;
-use fastrag::store::{Store, Verrou};
 use std::path::PathBuf;
 use std::process::ExitCode;
-use std::time::Duration;
 
 #[tokio::main]
 async fn main() -> ExitCode {
@@ -24,26 +20,19 @@ async fn main() -> ExitCode {
             return ExitCode::FAILURE;
         }
     };
-    println!("Configuration chargée : port {}", config.port);
-    match indexer(&config).await {
-        Ok(()) => {
-            println!("Indexation terminée");
-            ExitCode::SUCCESS
+    tracing_subscriber::fmt()
+        .with_writer(std::io::stderr)
+        .with_ansi(false)
+        .init();
+    match fastrag::service::demarrer(&config).await {
+        Ok(mut service) => {
+            println!("Service prêt sur http://{}", service.adresse);
+            service.attendre().await;
+            ExitCode::FAILURE
         }
         Err(e) => {
-            eprintln!("{e}");
+            eprintln!("Démarrage impossible : {e}");
             ExitCode::FAILURE
         }
     }
-}
-
-/// Rattrapage complet au démarrage (REQ-008 AC-3).
-async fn indexer(config: &Config) -> Result<(), Box<dyn std::error::Error>> {
-    let _verrou = Verrou::prendre(&config.dossier_donnees)?;
-    let store = Store::ouvrir(&config.dossier_donnees, &config.embedding.modele)?;
-    let cle = std::env::var(&config.embedding.cle_env).ok();
-    let provider = Provider::new(&config.embedding.url, cle, &config.embedding.modele);
-    let mut indexeur = Indexeur::new(store, provider, config.dossiers.clone());
-    synchroniser_avec_reprise(&mut indexeur, Duration::from_secs(config.reessai_secondes)).await?;
-    Ok(())
 }

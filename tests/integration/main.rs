@@ -1,7 +1,9 @@
+mod api;
 mod common;
 mod indexation;
 mod provider;
 mod resilience;
 mod search;
+mod service;
 mod socle;
 mod store;

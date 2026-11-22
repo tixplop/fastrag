@@ -61,6 +61,8 @@ pub struct Indexeur {
     avertissements: Vec<String>,
     en_attente: Vec<String>,
     statut: Statut,
+    /// Prochain passage : retraiter même les notes inchangées (REQ-009).
+    tout_retraiter: bool,
 }
 
 /// Remet l'état « en cours » à faux à la sortie, même en cas d'erreur.
@@ -81,6 +83,7 @@ impl Indexeur {
             avertissements: Vec::new(),
             en_attente: Vec::new(),
             statut: Statut::default(),
+            tout_retraiter: false,
         }
     }
 
@@ -104,6 +107,11 @@ impl Indexeur {
         self.statut.clone()
     }
 
+    /// Le prochain passage relit et redécoupe toutes les notes ; les vecteurs connus sont réutilisés.
+    pub fn demander_reindexation_complete(&mut self) {
+        self.tout_retraiter = true;
+    }
+
     pub fn store(&self) -> &Store {
         &self.store
     }
@@ -120,6 +128,7 @@ impl Indexeur {
             return Err(ErreurIndex::DejaEnCours);
         }
         let _garde = Garde(self.en_cours.clone());
+        let tout = std::mem::take(&mut self.tout_retraiter);
         let parcours = scan::parcourir(&self.dossiers);
         self.avertissements = parcours.avertissements;
         self.en_attente.clear();
@@ -160,7 +169,9 @@ impl Indexeur {
                 }
             };
             if connues.contains(&chemin) {
-                if self.store.empreinte_note(&chemin)?.as_deref() == Some(empreinte.as_str()) {
+                if !tout
+                    && self.store.empreinte_note(&chemin)?.as_deref() == Some(empreinte.as_str())
+                {
                     rapport.inchangees += 1;
                 } else {
                     a_traiter.push((chemin, empreinte, false));

@@ -269,6 +269,17 @@ impl Store {
             .optional()?)
     }
 
+    /// Nombre de notes et de passages indexés.
+    pub fn compter(&self) -> Result<(usize, usize)> {
+        let n: i64 = self
+            .conn
+            .query_row("SELECT COUNT(*) FROM notes", [], |r| r.get(0))?;
+        let p: i64 = self
+            .conn
+            .query_row("SELECT COUNT(*) FROM passages", [], |r| r.get(0))?;
+        Ok((n as usize, p as usize))
+    }
+
     pub fn chemins_notes(&self) -> Result<Vec<String>> {
         let mut st = self
             .conn

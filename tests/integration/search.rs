@@ -292,3 +292,42 @@ async fn req015_ac5_provider_injoignable_cle_invalide_quota() {
     let e = r2.chercher(&entree("texte")).await.unwrap_err();
     assert!(e.to_string().contains("clé invalide"), "{e}");
 }
+
+#[tokio::test]
+async fn req014_dossiers_configures_imbriques_ne_dupliquent_pas_les_passages() {
+    let mock = MockProvider::demarrer().await;
+    let racine = dossier_test("search_imbr_notes");
+    let interne = racine.join("x");
+    std::fs::create_dir_all(interne.join("x")).unwrap();
+    std::fs::write(interne.join("x/n.md"), "# N\n\ntarte aux pommes").unwrap();
+    std::fs::write(interne.join("m.md"), "# M\n\ntarte aux poires").unwrap();
+    let donnees = dossier_test("search_imbr_donnees");
+    let dossiers = vec![racine.clone(), interne.clone()];
+    let mut idx = Indexeur::new(
+        Store::ouvrir(&donnees, "m").unwrap(),
+        Provider::new(&mock.url, None, "m"),
+        dossiers.clone(),
+    );
+    idx.synchroniser().await.unwrap();
+    let r = Recherche::new(
+        Store::ouvrir(&donnees, "m").unwrap(),
+        Provider::new(&mock.url, None, "m"),
+        None,
+        dossiers,
+    );
+    // « x » désigne <racine>/x et <racine>/x/x : le passage de x/x/n.md correspond aux deux.
+    // Un doublon dans les candidats gonflerait son score : il doit être celui d'un seul dossier.
+    let seul = Recherche::new(
+        Store::ouvrir(&donnees, "m").unwrap(),
+        Provider::new(&mock.url, None, "m"),
+        None,
+        vec![racine.clone()],
+    );
+    let mut e = entree("tarte");
+    e.dossier = Some("x".into());
+    e.nombre = Some(10);
+    let res = r.chercher(&e).await.unwrap();
+    let attendu = seul.chercher(&e).await.unwrap();
+    assert_eq!(attendu.len(), 2);
+    assert_eq!(res, attendu);
+}
