@@ -7,6 +7,7 @@ use std::collections::HashMap;
 use std::fmt;
 use std::path::{Path, PathBuf};
 use std::sync::Mutex;
+use std::time::{Duration, Instant};
 
 /// Constante de la fusion RRF (DEC-007).
 const K_RRF: f64 = 60.0;
@@ -39,6 +40,35 @@ pub struct Resultat {
     pub ligne_fin: u32,
     pub tags: Vec<String>,
     pub score: f64,
+}
+
+/// Un passage trouvé, avec le détail de son classement (REQ-021).
+#[derive(Debug, Clone, PartialEq)]
+pub struct PassageDetail {
+    pub resultat: Resultat,
+    /// Score de fusion RRF.
+    pub fusion: f64,
+    /// Rang (1 à 50) dans la liste des voisins ; `None` = absent.
+    pub rang_sens: Option<usize>,
+    /// Rang (1 à 50) dans la liste des mots ; `None` = absent.
+    pub rang_mots: Option<usize>,
+    /// Score du reranker, s'il est activé.
+    pub reranker: Option<f64>,
+}
+
+/// Durées mesurées par le service.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct Durees {
+    pub total: Duration,
+    pub embedding: Duration,
+    /// `None` si le reranker est désactivé.
+    pub reranker: Option<Duration>,
+}
+
+#[derive(Debug, Clone)]
+pub struct Detail {
+    pub passages: Vec<PassageDetail>,
+    pub durees: Durees,
 }
 
 #[derive(Debug)]
@@ -160,18 +190,39 @@ impl Recherche {
         &self,
         entree: &EntreeRecherche,
     ) -> Result<Vec<Resultat>, ErreurRecherche> {
+        let detail = self.chercher_detail(entree).await?;
+        Ok(detail.passages.into_iter().map(|p| p.resultat).collect())
+    }
+
+    /// Comme `chercher`, avec rangs, scores et durées (REQ-021).
+    pub async fn chercher_detail(
+        &self,
+        entree: &EntreeRecherche,
+    ) -> Result<Detail, ErreurRecherche> {
+        let debut = Instant::now();
+        let mut durees = Durees {
+            total: Duration::ZERO,
+            embedding: Duration::ZERO,
+            reranker: None,
+        };
         let nombre = valider(entree)?;
         let question = entree.question.trim();
         let vide = |s: &Store| -> Result<bool, StoreError> { Ok(s.dimension()?.is_none()) };
         if vide(&self.store.lock().unwrap())? {
-            return Ok(Vec::new());
+            durees.total = debut.elapsed();
+            return Ok(Detail {
+                passages: Vec::new(),
+                durees,
+            });
         }
+        let t = Instant::now();
         let vecteur = self
             .provider
             .embeddings(&[question.to_string()])
             .await?
             .pop()
             .ok_or_else(|| ErreurProvider::ReponseInvalide("aucun vecteur reçu".into()))?;
+        durees.embedding = t.elapsed();
 
         let tag = entree.tag.clone().filter(|t| !t.is_empty());
         let dossiers: Vec<Option<String>> = match entree.dossier.as_deref() {
@@ -202,43 +253,69 @@ impl Recherche {
             voisins.truncate(crate::store::NB_CANDIDATS);
             mots.truncate(crate::store::NB_CANDIDATS);
         }
-        let mut fusion = fusionner(voisins, mots);
+        let rangs = |l: &[Candidat]| -> HashMap<i64, usize> {
+            l.iter()
+                .enumerate()
+                .map(|(i, c)| (c.passage_id, i + 1))
+                .collect()
+        };
+        let (rangs_sens, rangs_mots) = (rangs(&voisins), rangs(&mots));
+        // (candidat, score de fusion, score du reranker)
+        let mut fusion: Vec<(Candidat, f64, Option<f64>)> = fusionner(voisins, mots)
+            .into_iter()
+            .map(|(c, s)| (c, s, None))
+            .collect();
         if fusion.is_empty() {
-            return Ok(Vec::new());
+            durees.total = debut.elapsed();
+            return Ok(Detail {
+                passages: Vec::new(),
+                durees,
+            });
         }
         if let Some(r) = &self.reranker {
-            let docs: Vec<String> = fusion.iter().map(|(c, _)| c.texte.clone()).collect();
+            let docs: Vec<String> = fusion.iter().map(|(c, _, _)| c.texte.clone()).collect();
+            let t = Instant::now();
             let mut notes = r.rerank(question, &docs).await?;
+            durees.reranker = Some(t.elapsed());
             notes.sort_by(|a, b| b.1.total_cmp(&a.1));
-            let mut pris: Vec<Option<(Candidat, f64)>> = fusion.into_iter().map(Some).collect();
+            let mut pris: Vec<Option<(Candidat, f64, Option<f64>)>> =
+                fusion.into_iter().map(Some).collect();
             fusion = notes
                 .into_iter()
-                .filter_map(|(i, s)| pris[i].take().map(|(c, _)| (c, s as f64)))
+                .filter_map(|(i, s)| pris[i].take().map(|(c, f, _)| (c, f, Some(s as f64))))
                 .collect();
         }
         fusion.truncate(nombre);
         {
             let store = self.store.lock().unwrap();
             let mut m = HashMap::new();
-            for (c, _) in &fusion {
+            for (c, _, _) in &fusion {
                 if !m.contains_key(&c.chemin) {
                     m.insert(c.chemin.clone(), store.tags_note(&c.chemin)?);
                 }
             }
             tags_par_chemin = m;
         }
-        Ok(fusion
+        let passages = fusion
             .into_iter()
-            .map(|(c, score)| Resultat {
-                tags: tags_par_chemin.get(&c.chemin).cloned().unwrap_or_default(),
-                texte: c.texte,
-                chemin: c.chemin,
-                titres: c.titres,
-                ligne_debut: c.ligne_debut,
-                ligne_fin: c.ligne_fin,
-                score,
+            .map(|(c, f, rr)| PassageDetail {
+                fusion: f,
+                rang_sens: rangs_sens.get(&c.passage_id).copied(),
+                rang_mots: rangs_mots.get(&c.passage_id).copied(),
+                reranker: rr,
+                resultat: Resultat {
+                    tags: tags_par_chemin.get(&c.chemin).cloned().unwrap_or_default(),
+                    texte: c.texte,
+                    chemin: c.chemin,
+                    titres: c.titres,
+                    ligne_debut: c.ligne_debut,
+                    ligne_fin: c.ligne_fin,
+                    score: rr.unwrap_or(f),
+                },
             })
-            .collect())
+            .collect();
+        durees.total = debut.elapsed();
+        Ok(Detail { passages, durees })
     }
 }
 

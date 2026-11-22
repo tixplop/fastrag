@@ -59,6 +59,15 @@ impl Service {
         recherche.chercher(entree).await
     }
 
+    /// Recherche avec rangs, scores et durées, sur l'index actif (REQ-021).
+    pub async fn chercher_detail(
+        &self,
+        entree: &EntreeRecherche,
+    ) -> Result<crate::search::Detail, ErreurRecherche> {
+        let recherche = self.recherche.read().unwrap().clone();
+        recherche.chercher_detail(entree).await
+    }
+
     /// Contenu de l'état de l'index (REQ-017).
     pub fn etat(&self) -> Result<EtatIndex, crate::store::StoreError> {
         let (notes, passages) = self.lecture.lock().unwrap().compter()?;

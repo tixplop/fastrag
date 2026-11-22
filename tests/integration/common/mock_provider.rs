@@ -30,6 +30,8 @@ struct Etat {
     modeles: Vec<String>,
     /// Modèle dont les requêtes `/embeddings` attendent `liberer()`.
     retenu: Option<String>,
+    /// Délai de réponse de `/embeddings` et `/rerank`, en ms.
+    delai_ms: u64,
 }
 
 pub struct MockProvider {
@@ -73,6 +75,13 @@ async fn gerer_panne(
     }
 }
 
+async fn attendre(e: &Arc<Mutex<Etat>>) {
+    let ms = e.lock().unwrap().delai_ms;
+    if ms > 0 {
+        tokio::time::sleep(std::time::Duration::from_millis(ms)).await;
+    }
+}
+
 async fn embeddings(
     State(e): State<Arc<Mutex<Etat>>>,
     h: axum::http::HeaderMap,
@@ -86,6 +95,7 @@ async fn embeddings(
                 .collect()
         })
         .unwrap_or_default();
+    attendre(&e).await;
     let modele = corps["model"].as_str().unwrap_or("").to_string();
     e.lock().unwrap().modeles.push(modele.clone());
     loop {
@@ -124,6 +134,7 @@ async fn rerank(
     h: axum::http::HeaderMap,
     Json(corps): Json<Value>,
 ) -> axum::response::Response {
+    attendre(&e).await;
     e.lock().unwrap().appels_rerank += 1;
     if let Some(r) = gerer_panne(&e, &h).await {
         return r;
@@ -217,6 +228,11 @@ impl MockProvider {
 
     pub fn imposer_vecteur(&self, texte: &str, v: Vec<f32>) {
         self.etat.lock().unwrap().vecteurs.insert(texte.into(), v);
+    }
+
+    /// Chaque réponse de `/embeddings` et `/rerank` attend `ms` millisecondes.
+    pub fn retarder(&self, ms: u64) {
+        self.etat.lock().unwrap().delai_ms = ms;
     }
 
     pub fn imposer_score(&self, texte: &str, s: f32) {

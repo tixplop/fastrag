@@ -331,3 +331,85 @@ async fn req014_dossiers_configures_imbriques_ne_dupliquent_pas_les_passages() {
     assert_eq!(attendu.len(), 2);
     assert_eq!(res, attendu);
 }
+
+#[tokio::test]
+async fn req021_ac3_rangs_scores_fusion_et_reranker() {
+    let mock = MockProvider::demarrer().await;
+    mock.imposer_vecteur("sujet zorglub", base(0, 1, 0.0));
+    mock.imposer_vecteur("alpha sujet", base(0, 1, 0.1));
+    mock.imposer_vecteur("beta sujet", base(0, 1, 0.5));
+    // Loin en vecteur (hors des 50 voisins), mais seul à contenir le mot « zorglub ».
+    mock.imposer_vecteur("zorglub", base(5, 6, 0.0));
+    let remplissage: Vec<(String, String)> = (0..51)
+        .map(|i| {
+            let t = format!("remplissage{i}");
+            mock.imposer_vecteur(&t, base(0, 1, 1.0 + i as f32));
+            (format!("r{i}.md"), t)
+        })
+        .collect();
+    let mut notes: Vec<(&str, &str)> = vec![
+        ("a.md", "alpha sujet"),
+        ("b.md", "beta sujet"),
+        ("c.md", "zorglub"),
+    ];
+    notes.extend(remplissage.iter().map(|(a, b)| (a.as_str(), b.as_str())));
+    let (r, _) = monter("det_rangs", &mock, None, &notes).await;
+    let mut e = entree("sujet zorglub");
+    e.nombre = Some(50);
+    let d = r.chercher_detail(&e).await.unwrap();
+    let simple = r.chercher(&e).await.unwrap();
+    let rs: Vec<_> = d.passages.iter().map(|p| p.resultat.clone()).collect();
+    assert_eq!(rs, simple);
+    let zorglub = d
+        .passages
+        .iter()
+        .find(|p| p.resultat.texte == "zorglub")
+        .unwrap();
+    assert_eq!(zorglub.rang_sens, None);
+    assert_eq!(zorglub.rang_mots, Some(1));
+    let alpha = d
+        .passages
+        .iter()
+        .find(|p| p.resultat.texte == "alpha sujet")
+        .unwrap();
+    assert_eq!(alpha.rang_sens, Some(1));
+    assert!(alpha.rang_mots.is_some_and(|n| n >= 1));
+    assert!(alpha.reranker.is_none());
+    assert!((alpha.fusion - alpha.resultat.score).abs() < 1e-12);
+    assert!(d.durees.reranker.is_none());
+
+    // Reranker activé.
+    mock.imposer_score("beta sujet", 0.9);
+    mock.imposer_score("alpha sujet", 0.5);
+    mock.imposer_score("zorglub", 0.1);
+    let (avec, _) = monter("det_rangs_rr", &mock, Some(&mock), &notes).await;
+    let d2 = avec.chercher_detail(&e).await.unwrap();
+    let textes: Vec<&str> = d2
+        .passages
+        .iter()
+        .map(|p| p.resultat.texte.as_str())
+        .collect();
+    assert_eq!(textes[..3], ["beta sujet", "alpha sujet", "zorglub"]);
+    assert!((d2.passages[0].reranker.unwrap() - 0.9).abs() < 1e-6);
+    assert!((d2.passages[0].resultat.score - 0.9).abs() < 1e-6);
+    let beta_sans = d
+        .passages
+        .iter()
+        .find(|p| p.resultat.texte == "beta sujet")
+        .unwrap();
+    assert!((d2.passages[0].fusion - beta_sans.fusion).abs() < 1e-12);
+    assert!(d2.durees.reranker.is_some());
+}
+
+#[tokio::test]
+async fn req021_ac4_durees_mesurees_avec_delai_du_provider() {
+    let mock = MockProvider::demarrer().await;
+    let notes = [("a.md", "alpha sujet"), ("b.md", "beta sujet")];
+    let (r, _) = monter("det_durees", &mock, Some(&mock), &notes).await;
+    mock.retarder(50);
+    let d = r.chercher_detail(&entree("sujet")).await.unwrap();
+    let ms50 = std::time::Duration::from_millis(50);
+    assert!(d.durees.embedding >= ms50, "{:?}", d.durees);
+    assert!(d.durees.reranker.unwrap() >= ms50, "{:?}", d.durees);
+    assert!(d.durees.total >= d.durees.embedding + d.durees.reranker.unwrap());
+}
