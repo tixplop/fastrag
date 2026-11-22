@@ -126,6 +126,8 @@ pub fn valider(entree: &EntreeRecherche) -> Result<usize, ErreurRecherche> {
 pub struct Recherche {
     /// Connexion de lecture, séparée de celle de l'indexeur.
     store: Mutex<Store>,
+    /// Seconde connexion, pour lancer les mots en même temps que les voisins.
+    store_mots: Mutex<Store>,
     provider: Provider,
     reranker: Option<Provider>,
     dossiers: Vec<PathBuf>,
@@ -177,13 +179,15 @@ impl Recherche {
         provider: Provider,
         reranker: Option<Provider>,
         dossiers: Vec<PathBuf>,
-    ) -> Self {
-        Self {
+    ) -> Result<Self, StoreError> {
+        let store_mots = Mutex::new(store.autre_connexion()?);
+        Ok(Self {
             store: Mutex::new(store),
+            store_mots,
             provider,
             reranker,
             dossiers,
-        }
+        })
     }
 
     pub async fn chercher(
@@ -241,8 +245,13 @@ impl Recherche {
                     dossier,
                     tag: tag.clone(),
                 };
-                voisins.extend(store.voisins(&vecteur, &filtres)?);
-                mots.extend(store.mots(question, &filtres)?);
+                let (v, m) = std::thread::scope(|sc| {
+                    let h = sc.spawn(|| self.store_mots.lock().unwrap().mots(question, &filtres));
+                    let v = store.voisins(&vecteur, &filtres);
+                    (v, h.join().expect("recherche des mots interrompue"))
+                });
+                voisins.extend(v?);
+                mots.extend(m?);
             }
             // Des dossiers imbriqués peuvent ramener deux fois le même passage.
             for liste in [&mut voisins, &mut mots] {

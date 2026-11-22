@@ -129,6 +129,7 @@ async fn serie_req020_ac1_ac2_dix_mille_notes_memoire_et_recherche() {
         assert_eq!(r.status().as_u16(), 200);
         let v: serde_json::Value = r.json().await.unwrap();
         durees.push(t.elapsed());
+        println!("recherche {i} : {:?}", durees[i]);
         assert!(!v["resultats"].as_array().unwrap().is_empty());
     }
     durees.sort();

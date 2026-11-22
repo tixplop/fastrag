@@ -11,3 +11,4 @@ serie = { max-threads = 1 }
 [[profile.default.overrides]]
 filter = "test(/serie_/)"
 test-group = "serie"
+threads-required = "num-test-threads"

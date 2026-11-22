@@ -48,7 +48,8 @@ async fn monter(
         Provider::new(&mock.url, None, "m"),
         reranker.map(|m| Provider::new(&m.url, None, "m")),
         vec![racine.clone()],
-    );
+    )
+    .unwrap();
     (r, racine)
 }
 
@@ -314,7 +315,8 @@ async fn req014_dossiers_configures_imbriques_ne_dupliquent_pas_les_passages() {
         Provider::new(&mock.url, None, "m"),
         None,
         dossiers,
-    );
+    )
+    .unwrap();
     // « x » désigne <racine>/x et <racine>/x/x : le passage de x/x/n.md correspond aux deux.
     // Un doublon dans les candidats gonflerait son score : il doit être celui d'un seul dossier.
     let seul = Recherche::new(
@@ -322,7 +324,8 @@ async fn req014_dossiers_configures_imbriques_ne_dupliquent_pas_les_passages() {
         Provider::new(&mock.url, None, "m"),
         None,
         vec![racine.clone()],
-    );
+    )
+    .unwrap();
     let mut e = entree("tarte");
     e.dossier = Some("x".into());
     e.nombre = Some(10);

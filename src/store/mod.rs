@@ -206,6 +206,15 @@ impl Store {
         Ok(Self { conn })
     }
 
+    /// Nouvelle connexion sur le même fichier d'index (lectures simultanées, WAL).
+    pub fn autre_connexion(&self) -> Result<Self> {
+        let fichier = self
+            .conn
+            .path()
+            .ok_or_else(|| StoreError::Sqlite(rusqlite::Error::InvalidPath(PathBuf::new())))?;
+        Self::ouvrir_fichier(Path::new(fichier), &self.modele()?)
+    }
+
     pub fn modele(&self) -> Result<String> {
         Ok(self
             .conn

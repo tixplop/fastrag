@@ -190,7 +190,7 @@ fn ouvrir_recherche(
         Provider::new(&config.embedding.url, cle, modele),
         reranker,
         config.dossiers.clone(),
-    ))
+    )?)
 }
 
 /// Démarre le service sur `127.0.0.1` seulement : verrou, index, indexation de rattrapage, API.
