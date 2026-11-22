@@ -11,7 +11,10 @@ name = "fastrag"
 path = "src/main.rs"
 
 [dependencies]
+fs2 = "0.4.3"
+rusqlite = { version = "0.43.0", features = ["bundled"] }
 serde = { version = "1", features = ["derive"] }
+sqlite-vec = "0.1"
 toml = "0.8"
 
 [[test]]
