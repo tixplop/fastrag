@@ -1,0 +1,29 @@
+# Exemple de configuration de fastrag.
+# À copier vers ~/.config/fastrag/config.toml (ou à passer avec --config).
+
+# Dossiers de notes à indexer (.md, .markdown, .txt).
+# Un dossier Windows sous WSL s'écrit /mnt/c/Users/moi/Notes.
+dossiers = ["/home/moi/notes", "/mnt/c/Users/moi/Documents/Notes"]
+
+# Port HTTP (API et MCP), à l'écoute sur 127.0.0.1 seulement.
+port = 7878
+
+# Où l'index est conservé.
+dossier_donnees = "/home/moi/.local/share/fastrag"
+
+[embedding]
+# Tout service compatible OpenAI (route /embeddings) convient :
+#   OpenRouter : https://openrouter.ai/api/v1
+#   LiteLLM    : http://127.0.0.1:4000/v1
+#   Ollama     : http://127.0.0.1:11434/v1
+url = "https://openrouter.ai/api/v1"
+modele = "bge-m3"
+# Nom de la variable d'environnement qui contient la clé (la clé n'est jamais écrite ici).
+cle_env = "FASTRAG_CLE_EMBEDDING"
+
+[reranker]
+# Le reranker réordonne les résultats ; il est désactivé par défaut.
+actif = false
+url = "https://api.jina.ai/v1"
+modele = "bge-reranker-v2-m3"
+cle_env = "FASTRAG_CLE_RERANKER"

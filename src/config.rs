@@ -230,4 +230,13 @@ modele = "m2"
         let msg = Config::charger(Some(&f)).unwrap_err().to_string();
         assert!(msg.contains("absent.toml"), "{msg}");
     }
+
+    #[test]
+    fn exemple_documente_est_valide() {
+        let f = Path::new(env!("CARGO_MANIFEST_DIR")).join("config.example.toml");
+        let c = Config::charger(Some(&f)).unwrap();
+        assert_eq!(c.port, 7878);
+        assert_eq!(c.dossiers.len(), 2);
+        assert_eq!(c.embedding.modele, "bge-m3");
+    }
 }
