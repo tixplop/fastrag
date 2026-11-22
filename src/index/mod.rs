@@ -1,9 +1,11 @@
 //! Indexation : rapprochement des dossiers avec l'index (REQ-002, REQ-006).
 
+pub mod pending;
 pub mod scan;
 
 use crate::chunk::{decouper_fichier, TAILLE_FICHIER_MAX};
 use crate::provider::{ErreurProvider, Provider};
+use crate::status::Statut;
 use crate::store::{Note, Passage, Store, StoreError};
 use std::collections::{HashMap, HashSet};
 use std::path::PathBuf;
@@ -57,6 +59,8 @@ pub struct Indexeur {
     dossiers: Vec<PathBuf>,
     en_cours: Arc<AtomicBool>,
     avertissements: Vec<String>,
+    en_attente: Vec<String>,
+    statut: Statut,
 }
 
 /// Remet l'état « en cours » à faux à la sortie, même en cas d'erreur.
@@ -75,6 +79,8 @@ impl Indexeur {
             dossiers,
             en_cours: Arc::new(AtomicBool::new(false)),
             avertissements: Vec::new(),
+            en_attente: Vec::new(),
+            statut: Statut::default(),
         }
     }
 
@@ -88,18 +94,35 @@ impl Indexeur {
         &self.avertissements
     }
 
+    /// Notes dont le traitement attend le retour du provider.
+    pub fn en_attente(&self) -> &[String] {
+        &self.en_attente
+    }
+
+    /// État partagé : avertissements courants, lisibles pendant l'indexation.
+    pub fn statut(&self) -> Statut {
+        self.statut.clone()
+    }
+
     pub fn store(&self) -> &Store {
         &self.store
     }
 
     /// Rapproche l'index des dossiers : notes nouvelles, modifiées, supprimées, renommées.
     pub async fn synchroniser(&mut self) -> Result<Rapport, ErreurIndex> {
+        let r = self.passer().await;
+        self.statut.publier(&self.avertissements);
+        r
+    }
+
+    async fn passer(&mut self) -> Result<Rapport, ErreurIndex> {
         if self.en_cours.swap(true, Ordering::SeqCst) {
             return Err(ErreurIndex::DejaEnCours);
         }
         let _garde = Garde(self.en_cours.clone());
         let parcours = scan::parcourir(&self.dossiers);
         self.avertissements = parcours.avertissements;
+        self.en_attente.clear();
         let mut rapport = Rapport::default();
 
         let presents: HashSet<String> = parcours
@@ -194,7 +217,21 @@ impl Indexeur {
         let textes: Vec<String> = inconnus.iter().map(|p| p.texte.clone()).collect();
         let mut vecteurs: HashMap<String, Vec<f32>> = HashMap::new();
         if !textes.is_empty() {
-            let v = self.provider.embeddings(&textes).await?;
+            let v = match self.provider.embeddings(&textes).await {
+                Ok(v) => v,
+                Err(e) => {
+                    // Les notes restent en attente ; leur ancienne version, s'il y en a une,
+                    // reste dans l'index.
+                    for (note, _, _) in &notes {
+                        self.avertissements.push(format!(
+                            "{} : en attente, nouvel essai plus tard ({e})",
+                            note.chemin
+                        ));
+                        self.en_attente.push(note.chemin.clone());
+                    }
+                    return Ok(rapport);
+                }
+            };
             if v.len() != textes.len() {
                 return Err(ErreurProvider::ReponseInvalide(
                     "nombre de vecteurs différent du nombre de textes".into(),

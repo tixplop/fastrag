@@ -5,8 +5,8 @@ Format : `chemin` — rôle (REQ).
 
 - `Cargo.toml` — crate lib + bin `fastrag`, binaire de test `integration`.
 - `src/lib.rs` — racine de la bibliothèque.
-- `src/main.rs` — binaire mince : lit `--config <fichier>`, charge la configuration (REQ-001).
-- `src/config.rs` — configuration TOML, valeurs par défaut, erreur nommant fichier et champ (REQ-001 AC-1, AC-2).
+- `src/main.rs` — binaire mince : lit `--config <fichier>`, charge la configuration (REQ-001), prend le verrou, rattrape l'index au démarrage avec reprise (REQ-008 AC-3, REQ-010 AC-2).
+- `src/config.rs` — configuration TOML, valeurs par défaut, erreur nommant fichier et champ (REQ-001 AC-1, AC-2) ; `reessai_secondes` (30 par défaut).
 - `.config/nextest.toml` — timeouts (10 s unitaire, 60 s intégration), groupe `serie` (tests nommés `serie_*`).
 - `tests/integration/main.rs` — binaire unique d'intégration, un module par thème.
 - `tests/integration/common/mod.rs` — aide commune (dossier de test sous `TMPDIR`).
@@ -25,3 +25,6 @@ Format : `chemin` — rôle (REQ).
 - `src/index/mod.rs` — `Indexeur::synchroniser` : rapprochement dossiers/index (nouvelles, modifiées, supprimées, renommées), empreinte `blake3`, envoi au provider des seuls textes sans vecteur connu, indicateur « en cours » (REQ-002, REQ-006 AC-2 à AC-4).
 - `src/index/scan.rs` — parcours des dossiers : extensions `.md/.markdown/.txt`, dossiers cachés ignorés, dossier introuvable → avertissement (REQ-002).
 - `tests/integration/indexation.rs` — tests de l'indexeur (REQ-002, REQ-006).
+- `src/index/pending.rs` — `synchroniser_avec_reprise` : nouvel essai au délai configuré tant que des notes attendent le provider (REQ-007).
+- `src/status.rs` — `Statut` partagé : avertissements courants, remplacés à chaque passage (REQ-005 AC-3, REQ-007).
+- `tests/integration/resilience.rs` — avertissements, provider en panne puis de retour, rattrapage, binaire tué (REQ-005 AC-3, REQ-007, REQ-008 AC-3, REQ-010 AC-2).

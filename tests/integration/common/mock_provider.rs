@@ -31,7 +31,8 @@ struct Etat {
 pub struct MockProvider {
     pub url: String,
     etat: Arc<Mutex<Etat>>,
-    tache: tokio::task::JoinHandle<()>,
+    adresse: std::net::SocketAddr,
+    tache: Mutex<tokio::task::JoinHandle<()>>,
 }
 
 /// Vecteur déterministe tiré de l'empreinte du texte.
@@ -126,32 +127,61 @@ async fn rerank(
     Json(json!({"results": results})).into_response()
 }
 
+fn construire(etat: Arc<Mutex<Etat>>) -> Router {
+    Router::new()
+        .route("/embeddings", post(embeddings))
+        .route("/rerank", post(rerank))
+        // Pas de connexion réutilisée : après `arreter()`, le port refuse les connexions.
+        .layer(axum::middleware::map_response(
+            |mut r: axum::response::Response| async move {
+                r.headers_mut()
+                    .insert("connection", "close".parse().unwrap());
+                r
+            },
+        ))
+        .with_state(etat)
+}
+
 impl MockProvider {
     pub async fn demarrer() -> Self {
         let etat = Arc::new(Mutex::new(Etat::default()));
-        let app = Router::new()
-            .route("/embeddings", post(embeddings))
-            .route("/rerank", post(rerank))
-            // Pas de connexion réutilisée : après `arreter()`, le port refuse les connexions.
-            .layer(axum::middleware::map_response(
-                |mut r: axum::response::Response| async move {
-                    r.headers_mut()
-                        .insert("connection", "close".parse().unwrap());
-                    r
-                },
-            ))
-            .with_state(etat.clone());
         let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
-        let url = format!("http://{}", listener.local_addr().unwrap());
+        let adresse = listener.local_addr().unwrap();
+        let app = construire(etat.clone());
         let tache = tokio::spawn(async move {
             axum::serve(listener, app).await.unwrap();
         });
-        Self { url, etat, tache }
+        Self {
+            url: format!("http://{adresse}"),
+            etat,
+            adresse,
+            tache: Mutex::new(tache),
+        }
     }
 
     /// Panne réseau : le serveur n'écoute plus.
     pub fn arreter(&self) {
-        self.tache.abort();
+        self.tache.lock().unwrap().abort();
+    }
+
+    /// Retour du provider : écoute de nouveau sur la même adresse.
+    pub async fn relancer(&self) {
+        self.arreter();
+        let mut essais = 0;
+        let listener = loop {
+            match tokio::net::TcpListener::bind(self.adresse).await {
+                Ok(l) => break l,
+                Err(e) if essais >= 250 => panic!("port {} non libéré : {e}", self.adresse),
+                Err(_) => {
+                    essais += 1;
+                    tokio::time::sleep(std::time::Duration::from_millis(20)).await
+                }
+            }
+        };
+        let app = construire(self.etat.clone());
+        *self.tache.lock().unwrap() = tokio::spawn(async move {
+            axum::serve(listener, app).await.unwrap();
+        });
     }
 
     pub fn panne(&self, p: Panne) {

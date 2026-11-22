@@ -50,6 +50,8 @@ pub struct Config {
     pub reranker: Reranker,
     pub port: u16,
     pub dossier_donnees: PathBuf,
+    /// Délai avant un nouvel essai quand le provider d'embedding échoue.
+    pub reessai_secondes: u64,
 }
 
 fn home() -> PathBuf {
@@ -66,6 +68,7 @@ impl Default for Config {
             reranker: Reranker::default(),
             port: 7878,
             dossier_donnees: home().join(".local/share/fastrag"),
+            reessai_secondes: 30,
         }
     }
 }
