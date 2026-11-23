@@ -4,11 +4,23 @@ Recherche sémantique dans vos notes Markdown et texte. fastrag indexe vos dossi
 
 ## Installation
 
+Linux x86_64 (WSL compris) :
+
+```sh
+curl -fsSL https://raw.githubusercontent.com/tixplop/fastrag/master/install.sh | sh
+```
+
+Le binaire est installé dans `~/.local/bin` (ou dans le dossier donné par `FASTRAG_INSTALL_DIR`). Le script ne crée pas de configuration et ne lance pas le service.
+
+Autres systèmes : compilez depuis les sources.
+
 ```sh
 cargo build --release
 ```
 
 Le binaire est `target/release/fastrag`.
+
+`fastrag --version` affiche la version installée ; `fastrag update` installe la dernière release.
 
 ## Configuration
 

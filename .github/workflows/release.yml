@@ -1,0 +1,20 @@
+name: release
+
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - run: cargo build --release --locked
+      - run: cp target/release/fastrag fastrag-linux-x86_64
+      - run: gh release create "$GITHUB_REF_NAME" fastrag-linux-x86_64 --generate-notes
+        env:
+          GH_TOKEN: ${{ github.token }}

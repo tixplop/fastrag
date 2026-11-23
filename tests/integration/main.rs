@@ -1,6 +1,7 @@
 mod api;
 mod common;
 mod indexation;
+mod install;
 mod mcp;
 mod model_change;
 mod perf;
