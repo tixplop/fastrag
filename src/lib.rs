@@ -8,5 +8,6 @@ pub mod search;
 pub mod service;
 pub mod status;
 pub mod store;
+pub mod update;
 pub mod watch;
 pub mod web;

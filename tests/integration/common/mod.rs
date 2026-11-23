@@ -49,3 +49,5 @@ impl Drop for GardeEnfant {
         }
     }
 }
+
+pub mod mock_releases;

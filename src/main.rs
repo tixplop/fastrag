@@ -7,9 +7,14 @@ async fn main() -> ExitCode {
     let args: Vec<String> = std::env::args().skip(1).collect();
     let chemin = match args.as_slice() {
         [] => None,
+        [a] if a == "--version" => {
+            println!("fastrag {}", env!("CARGO_PKG_VERSION"));
+            return ExitCode::SUCCESS;
+        }
+        [a] if a == "update" => return ExitCode::from(fastrag::update::lancer().await),
         [opt, p] if opt == "--config" => Some(PathBuf::from(p)),
         _ => {
-            eprintln!("Usage : fastrag [--config <fichier>]");
+            eprintln!("Usage : fastrag [--config <fichier>] | fastrag update | fastrag --version");
             return ExitCode::from(2);
         }
     };

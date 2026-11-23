@@ -10,5 +10,6 @@ mod search;
 mod service;
 mod socle;
 mod store;
+mod update;
 mod watch;
 mod web;
